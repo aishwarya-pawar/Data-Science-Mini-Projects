@@ -1,0 +1,337 @@
+---
+title: 'Assignment #3'
+output:
+  html_document:
+    df_print: paged
+---
+
+
+The sales data is in the CSV format in the file **"Peanut Butter Chicago.csv"**.  The data set corresponds to the total weekly sales of peanut butter for a supermarket chain, not for the individual stores. As you can observe from the file, the data corresponds to a combination of multiple brands as well as the supermarket private label (generic) in sizes ranging from 0.75 to 1.5 lbs.   
+
+The data includes the following information for each individual stock keeping unit (SKU) as identified by its UPC code on each week in the data file:
+
+* VEND	Number identifying the product vendor (48001 corresponds to Unilever).
+* UPC	The product’s universal product code (bar code)
+* UNITS	Sales volume
+* DOLLARS	Dollar sales revenue
+*	VOL_EQ	Weight in pounds of a units sold
+*	PPU	Price per unit ($/lb)
+*	F	Factor specifying advertising in the store weekly flyer:  
+    + F = “A”	Large size ad.
+    + F = “B”	Medium size ad.
+    + F = “C”	Small size ad.
+*	D	Factor specifying In-Store Display
+    + D = 0	No In-Store Display
+    + D = 1	Minor In-Store Display
+    + D = 2	Major In-Store Display
+
+To simplify the modeling process (and the assignment) in the preprocessing script  below I lumped all products into just three aggregate products (sub-categories): “SK” includes all Skippy brand products, “OB” includes all other branded products and “PL” includes all private label products. For each of the three aggregate products I obtained the total sales (volume) in pounds, the average sale prices ($/lb), and volume-weighted averages of the advertising and display variables (F and D).  Please take a few minutes to examine the pre-processing script below. 
+
+ 
+Our goal is to embed a log-log demand model in an ARIMA model (Regression with ARIMA errors) that accounts for the auto-correlations in the sales data.  As a first attempt we would like to include a demand function of the following form:
+
+$$y=e^{βx} p_S^α p_B^γ p_P^{γ_o}$$
+
+Where the model variables and parameters are defined as follows:
+
+* $y$ :	Demand (sales volume)
+* $p_S$ :	Average price per pound of “Skippy” products
+* $p_B$ :	Average price per pound of “Other Branded” products
+* $p_P$ :	Average price per pound of “Private Label” products
+* $x$ :	Vector of weighted averages of advertising and display variables for each product sub-category
+* $β$ :	Vector of coefficients for advertising and display variables
+* $α,γ,γ_o$:	Coefficients (elasticity and cross-elasticities) of prices
+
+We have a total of 104 weeks of data.  In this assignment we will use weeks 1 through 94 as a training set and weeks 95 through 104 as a testing set.
+
+
+```{r, message=FALSE, warning=FALSE}
+library(fpp)
+library(reshape)
+library(dplyr)
+library(glmnet)
+
+# Data Pre-Processing 
+#
+PBS <- read.csv("PBS.csv") %>% 
+  mutate( F_LSA=ifelse(F=="A",1,0),   # Large Size Ad Dummy
+          F_MSA=ifelse(F=="B",1,0),   # Medium Size Ad Dummy
+          F_SSA=ifelse(F=="C",1,0),   # Small Size Ad Dummy
+          D_MIN=ifelse(D==1,1,0),     # Minor In-Store Display Dummy
+          D_MAJ=ifelse(D==2,1,0)) %>% # Major In-Store Display Dummy
+  # Promotional variables are weighted by sales volume (oz)
+  mutate(S_LB = UNITS * VOL_EQ,
+         WF_LSA = F_LSA * S_LB,     # Large Size Ad Weighted
+         WF_MSA = F_MSA * S_LB,     # Medium Size Ad Weighted
+         WF_SSA = F_SSA * S_LB,     # Small Size Ad Weighted
+         WD_MIN = D_MIN * S_LB,     # Minor In-Store Display Weighted
+         WD_MAJ = D_MAJ * S_LB) %>% # Major In-Store Display Weighted
+  mutate(VEND =ifelse(VEND == 48001,"SK",ifelse( VEND == 99998,"PL","OB"))) %>%
+  select(-F, -D)
+
+# Create aggregate variables by product-week
+x.pw <- PBS %>% group_by(WEEK, VEND) %>% 
+  summarise(S.DOLLARS = sum(DOLLARS),      # Total $ Sales 
+            S.S_LB    = sum(S_LB),         # Total L. Sales
+            S.WF_LSA  = sum(WF_LSA),       # Total Weighted Large Ad
+            S.WF_MSA  = sum(WF_MSA),       # Total Weighted Medium Ad
+            S.WF_SSA  = sum(WF_SSA),       # Total Weighted Small Ad
+            S.WD_MIN  = sum(WD_MIN),       # Total Weighted Minor Store Disp
+            S.WD_MAJ  = sum(WD_MAJ)) %>%   # Total Weighted Major Store Disp
+  # Calculate weigted averages of Advertising and Promotion variables
+  mutate(A.PPU = log(S.DOLLARS / S.S_LB),  # Log of Avg. Price ($/pound)
+         S.WF_LSA  = S.WF_LSA / S.S_LB,    # Avg. Weighted Large Ad
+         S.WF_MSA  = S.WF_MSA / S.S_LB,    # Avg. Weighted Medium Ad
+         S.WF_SSA  = S.WF_SSA / S.S_LB,    # Avg. Weighted Small Ad
+         S.WD_MIN  = S.WD_MIN / S.S_LB,    # Avg. Weighted Minor Store Disp
+         S.WD_MAJ  = S.WD_MAJ / S.S_LB)    # Avg. Weighted Major Store Disp
+
+#
+x.pw <- x.pw %>%
+  mutate(LS  = log(S.S_LB)) %>% 
+  select(-S.DOLLARS, -S.S_LB)
+#
+# Creeate separate dataframes for each brand group
+x.SK <- x.pw %>% filter(VEND == "SK") %>% select(-VEND)
+colnames(x.SK) <- c("WEEK","WF_LSA.SK","WF_MSA.SK","WF_SSA.SK","S.WD_MIN.SK","S.WD_MAJ.SK","PPU.SK","LS.SK" )
+x.OB <- x.pw %>% filter(VEND == "OB") %>% select(-VEND,-LS)
+colnames(x.OB) <- c("WEEK","WF_LSA.OB","WF_MSA.OB","WF_SSA.OB","S.WD_MIN.OB","S.WD_MAJ.OB","PPU.OB")
+x.PL <- x.pw %>% filter(VEND == "PL") %>% select(-VEND,-LS)
+colnames(x.PL) <- c("WEEK","WF_LSA.PL","WF_MSA.PL","WF_SSA.PL","S.WD_MIN.PL","S.WD_MAJ.PL","PPU.PL")
+
+#Join the product-specific dataframes to create an expanded dataframe for SK using the 
+# data from competing products as additional columns to be used as predicitve variables
+
+xmat <- x.SK %>%
+  left_join(x.OB,by="WEEK") %>%
+  left_join(x.PL,by="WEEK")
+
+# If your code executed correctly xmat should have 20 cols and 104 rows.
+#
+xm <- model.matrix(LS.SK ~. - WEEK, data=xmat)[,-1]
+y <- xmat$LS.SK
+
+#Separation of Training and Testing sets
+xm.tr <- xm[1:94,]
+y.tr <-  y[1:94]
+xm.te <- xm[95:104,]
+y.te <-  y[95:104]
+#
+```
+
+
+#### 1.   After pre-processing the data, notice that you have 18 predictive variables plus the week index and the sales vector.  Notice that the pre-processing step already computes the log of the average prices and sales volumes. Now use The Lasso on the training set to obtain (a) a regularized model and (b) the reduced set of predictive variables that minimize the cross-validated MSE over the training set (i.e., the set of variables included in the Lasso-regularized model). (Use set.seed(1) before 10-fold cross-validation).  
+```{r}
+#Fitting Lasso model on the training dataset
+lam_val=10^seq(10,-2,length=50) 
+las_reg=glmnet(xm.tr,y.tr,alpha=1,lambda=lam_val)
+plot(las_reg)
+
+```
+
+
+```{r}
+#Finding the best lambda to predict in the test dataset 
+set.seed(1)
+cv_out=cv.glmnet(xm.tr,y.tr,alpha=1)
+plot(cv_out)
+# 1 SE lambda
+lam_1se=cv_out$lambda.1se
+lam_1se
+pred<-predict(las_reg,s=lam_1se,newx=xm.te)
+# MSE = 
+mean((pred-y.te)^2)
+
+## with min lambda :
+lam_min=cv_out$lambda.min
+lam_min
+pred2<-predict(las_reg,s=lam_min,newx=xm.te)
+mean((pred2-y.te)^2)
+
+
+```
+
+* Answer:
+
+- Minimum lambda is 0.047 and cross validation MSE with minimum lambda is 0.175
+
+- 1 SE lambda is 0.108 and cross validation MSE with it is 0.173. Hence I choose 1 SE lambda for regression
+
+
+```{r}
+#Refitting the training model using the best lambda
+las_reg_1se = glmnet(xm.tr,y.tr,alpha=1,lambda=lam_1se)
+summary(las_reg_1se)
+las_reg_1se_pred = predict(las_reg_1se,s=lam_1se,newx=xm.te)
+mean((las_reg_1se_pred-y.te)^2)
+
+#Coefficients : 
+predict(las_reg_1se,type ="coefficients",lambda=lam_1se)
+
+```
+
+- Only 2 variables are have non-zero coefficients: S.WD_MIN.SK & PPU.SK 
+
+
+#### 2.   Use the training set to fit an unrestricted regression model (i.e., **lm(…)** ) on the reduced set of explanatory variables identified by The Lasso.  Report the coefficients of the full model and comment on the fit of the model and examine the auto-correlations of the residuals of this model. 
+
+```{r}
+xm.tr1<-as.data.frame(xm.tr)
+reg_model_unrestr<-lm(y.tr~xm.tr1$S.WD_MIN.SK+xm.tr1$PPU.SK)
+summary(reg_model_unrestr)
+
+# fit for test:
+reg_model_unrestr_pred = predict(reg_model_unrestr,newx=xm.te)
+mean((reg_model_unrestr_pred-y.te)^2)
+
+res_unrestr = reg_model_unrestr$res 
+acf(res_unrestr)
+pacf(res_unrestr)
+```
+
+* Answer:
+
+- Coefficient of S.WD_MIN.SK is 0.5741 (i.e. positive correlation ) and that of PPU.SK is -2.5493 (negative correlation). Both the variables are significant while predicting the dependent variable
+
+- ACF plot is decreasing with q=2 for ARIMA
+
+- PACF plot showcases p=4 for ARIMA
+
+
+#### 3.   Fit a simple ARIMA model (not a dynamic regression model) to explain the training set log-of-sales-volume data. Report the diagnostic of your model’s residuals and comment on the model’s validity.  
+
+```{r}
+#Check if the series is statinary 
+y.tr %>% ggtsdisplay()
+adf.test(y.tr,alternative = 'stationary',k=12)
+```
+
+* p-value of 0.75 indicates that null hypothesis of the series being non-stationary can not be rejected. Hence, the series is non-stationary
+
+
+```{r}
+#series is not staionary hence taking 1st diffence
+arima_model<-Arima(y.tr,order=c(4,1,2))
+summary(arima_model)
+checkresiduals(arima_model)
+```
+
+* p-value is 0.69 and the residual is almost normal. Hence, the arima with p=4,q=2 & d=1 is valid. 
+
+- After trying a few iterations with different p,d & q values, (4,1,2) is the giving the best results based on the residuals 
+
+
+```{r}
+#Trying different values for p,d,q
+arima_model2= Arima(y.tr,order=c(2,1,2))
+summary(arima_model2)
+checkresiduals(arima_model2)
+```
+
+#### 4.   Use the model in (3) to prepare a 10 period ahead forecast and compare it (overlay it) with the testing set log-of-sales data.  Comment on the usefulness of this model in terms of precision and confidence interval. 
+
+```{r}
+sales_forecast_10<-forecast(arima_model,h=10)
+autoplot(sales_forecast_10)
+accuracy(sales_forecast_10,y.te)
+```
+
+*Answer*
+
+- The forecast gives MAPE of 9.6% for test and RMSE (variance) of 0.74. 
+
+- The model seems to dampen the fluctuations observed in the historic data
+
+#### 5.   Use the **auto.arima(…)** function to fit a dynamic regression (i.e., regression with ARIMA errors) model to explain sales data (log) using only the predictive variables identified by The Lasso in (1).  Examine the model’s residuals and comment on its validity. 
+
+
+```{r}
+auto_arima_model= auto.arima(y.tr,xreg = cbind(xm.tr1$S.WD_MIN.SK,xm.tr1$PPU.SK))
+summary(auto_arima_model)
+checkresiduals(auto_arima_model)
+```
+
+*Answer*
+
+- Residuals are distinguishable from a white noise series as the p-valie is 0.023. They are auto-correlated. Hence, the model is not valid. 
+
+- Residual plot is also not perfecly normal 
+
+
+#### 6.   Obtain a dynamic regression model that improves on the auto-arima model in  (5) in terms of its information coefficients and residual diagnostics. Compare the coefficients of the explanatory variables in (a) The Lasso model, (b) The unrestricted model obtained in (2), and (c) The ones obtained in this step  Then use the B notation (polynomial) to describe the model you obtained.  
+
+
+```{r}
+
+L = BoxCox.lambda(y.tr)
+y.tr.box = BoxCox(y.tr,L)
+auto_arima_box<-Arima(y.tr.box,xreg = cbind(xm.tr1$S.WD_MIN.SK,xm.tr1$PPU.SK),order=c(0,0,1),lambda=L)
+
+summary(auto_arima_box)
+
+checkresiduals(auto_arima_box)
+```
+
+
+*Answer*
+
+- p-value has increased to 0.08 after box-cox transformation. Hence, now the residuals are not autocorrelated anymore and are not distinguishable from white noise. 
+
+- After box-cox :
+Coefficients :
+
+ S.WD_MIN.SK= 0.0283  (SE= 0.007)
+ PPU.SK:-0.1766 (SE= 0.01)
+ 
+- Unrestricted model: 
+S.WD_MIN.SK   0.5741   ( SE: 0.0947)   
+PPU.SK       -2.5493     (SE :0.1279
+
+
+- Lasso model :
+
+S.WD_MIN.SK  0.308863
+PPU.SK      -2.191131
+
+
+- The correlation direction is same in all 3 models i.e. positive for S.WD_MIN.SK and negative for PPU.SK
+
+- Standard error in the coefficients is lesser in ARMA model (dynamic regreesion)
+
+- MSE for lassso is 0.1734098 and for unrestricted model is :1.232701
+
+- The residuals seem to be the least for dynamic regression model 
+
+- Equation of the model:
+
+  yt=B1X1+B2X2+Nt 
+
+  Nt=(1+B)et
+
+
+#### 7.   Use the model in (5) to prepare a 10 period ahead forecast and compare it (overlay it) with the testing set log-of-sales data. You can also obtain the values of the regressors used in the forecasting model from the testing data set **xm.te**.  
+
+```{r}
+xm.te1<-as.data.frame(xm.te)
+auto_arima_box_frct<-forecast(auto_arima_box,xreg=cbind(xm.te1$S.WD_MIN.SK,xm.te1$PPU.SK),h=10)
+accuracy(auto_arima_box_frct,y.te)
+autoplot(auto_arima_box_frct)
+```
+*Answer*
+
+- Dynamic regression has improved the residuals compared to standalone ARIMA model (3)
+
+- The confidence interval was much wider in (3) but with dynamic the forecast does not seem like a naive forecast. 
+
+
+
+#### 8.   After you complete a project, it is often useful to reflect on what would you do different if you were to perform this project again.  This is no exception.  Comment on the training and testing fit statistics and discuss how do you think you could improve on the performance of the model in terms of (a) additional data, (b) different pre-processing of the existing data, and (c) different modeling choices. 
+
+*Answer*
+
+- Additional data would increase the robustness of the model and make it more reliable. Some long term seasonality also might get captured in case of additional data
+
+- As we have seen that the series is not stationary and hence differencing the series to the correct order is important for better estimates from the model. Hence, more pre-processing could be done to make the series stationary 
+
+- For current dynamic regression, we are relying on auto arima. However, auto arima does not give the most accurate results and hence grid search for correct values of p,q,d along with seasonal elements would make the forecast more accurate 
+

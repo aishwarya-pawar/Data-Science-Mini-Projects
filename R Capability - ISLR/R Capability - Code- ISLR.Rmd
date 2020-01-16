@@ -1,0 +1,1405 @@
+---
+title: "ISLR - R Capability"
+author: "Aishwarya Pawar"
+date: "8/1/2019"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##### Chapter 2 : Question 10 : 
+
+###### Question a:
+
+```{r warning=FALSE }
+library(MASS)
+#Number of Rows
+no_rows=nrow(Boston)
+#no_rows
+print(paste("Number of Rows of Boston Dataset:",no_rows))
+no_cols=ncol(Boston)
+print(paste("Number of Columns of Boston Dataset:",no_cols))
+
+print("The columns specify the suburbs of boston and the columns represent different attributes of the locality Ex.- Crime rate , nitrogen concentration etc. ")
+```
+
+###### Question b:
+```{r warning=FALSE }
+#Relationship between Number of Rooms per dwelling and median value of owner-occupied home
+
+x1=Boston$rm
+y1=Boston$medv
+
+plt =plot(x1, y1, main = "#Rooms vs House Value",  xlab = "Number of Rooms", ylab = "House Value")
+require(lattice)
+require(ggplot2)
+bstn_plt=Boston[c(1,5:8,10:14)]
+
+pairs(bstn_plt[2:6], pch = 21)
+
+```
+
+
+
+Finding:
+- As the number of rooms increase in the dwelling, the median value #of owner-occupied homes increases i.e. positive correlation
+- There seems to be a positive correlation between nitrogen oxide and age of the units
+- The scatter plot shows that as the distance from Boston employment center increases, there seems to be a slight decrease in nitrogen oxide concentration
+
+
+##### Question b:
+```{r warning=FALSE }
+#Relationship between Number of Rooms per dwelling and median value of owner-occupied home
+
+x1=Boston$lstat
+y1=Boston$medv
+
+plt =plot(x1, y1, main = "#Lower Status Population vs House Value",  xlab = "Lower Status Population", ylab = "House Value")
+
+```
+
+
+
+Finding: 
+- As the lower status population increases in the locality, the median value of owner-occupied homes decreases i.e. negative correlation
+
+##### Question c:
+```{r warning=FALSE }
+#Are any of the predictors associated with per capita crime rate? If so, explain the relationship.
+
+correlation= cor(Boston[-1],Boston$crim)
+
+print("Correlation of Crime Rate with other factors:")
+print(correlation)
+
+x2=Boston$dis
+y2=Boston$crim
+plt =plot(x2, y2, main = "#Lower Status Population vs House Value",  xlab = "Lower Status Population", ylab = "House Value")
+
+```
+
+
+
+
+Finding:
+
+- Index of accessibility to radial highways and property tax seems to have positive correlation of 0.62 and 0.58 with crime rate i.e. as the tax and distance from highway increase the crime rate decreases.
+
+- Distance from 5 boston employment centres seems to have negative correlation of 0.37 and the scatter plot also shows the decrease
+
+
+
+##### Question d:
+```{r warning=FALSE }
+#Do any of the suburbs of Boston appear to have particularly high crime rates? Tax rates? Pupil-teacher ratios? Comment on the range of each predictor.
+
+
+max_crim=Boston[Boston$crim==max(Boston$crim),]
+print("381st suburb has the highest crime rate")
+## range calculation
+range_crim=range(Boston$crim)
+range_crim_f=range_crim[2]-range_crim[1]
+print(paste0("Range of crime rate is : ",range_crim_f))
+
+max_tax=Boston[Boston$tax==max(Boston$tax),]
+print("489-493 suburbs have the highest crime rate")
+## range calculation
+range_tax=range(Boston$tax)
+range_tax_f=range_tax[2]-range_tax[1]
+print(paste0("Range of tax rate is : ",range_tax_f))
+
+max_ptratio=Boston[Boston$ptratio==max(Boston$ptratio),]
+print("355& 356 suburbs have the highest crime rate of 22")
+
+## range calculation
+range_ptratio=range(Boston$ptratio)
+range_ptratio_f=range_ptratio[2]-range_ptratio[1]
+print(paste0("Range of pupil-teacher ratio is : ",range_ptratio_f))
+
+```
+
+
+##### Question e:
+```{r warning=FALSE }
+#How many of the suburbs in this data set bound the Charles river?
+  #sum of chas flags would give us number of suburbs 
+tot_chas=sum(Boston$chas)
+print(paste0("Number of suburbs bound the Charles river :",tot_chas))
+```
+
+
+
+##### Question f:
+```{r warning=FALSE }
+#What is the median pupil-teacher ratio among the towns in this data set?
+
+med_ptratio=median(Boston$ptratio)
+print(paste("The median pupil-teacher ration of Boston is :",med_ptratio))
+
+
+```
+
+##### Question g:
+```{r warning=FALSE}
+#Which suburb of Boston has lowest median value of owneroccupied homes? What are the values of the other predictors for that suburb, and how do those values compare to the overall ranges for those predictors? Comment on your findings.
+
+min_medv=Boston[(Boston$medv==min(Boston$medv)),]
+
+print(min_medv)
+
+
+```
+
+
+
+Findings:
+
+- suburb 399 and 406 are the suburbs with lowest median value of owner-occupied homes of $5000
+
+- These suburbs have very high crime rate; high proportion of non-retail business acres per town; above average nitrogen oxide concentration; Below average number of rooms per dwelling; high proportion of blacks; higher % of lower status population. Also, these suburbs seems to have very old units build prior to 1940
+
+
+##### Question h:
+```{r warning=FALSE }
+# In this data set, how many of the suburbs average more than seven rooms per dwelling? More than eight rooms per dwelling? Comment on the suburbs that average more than eight rooms per dwelling.
+
+mr_7=nrow(Boston[(Boston$rm>7),])
+print(paste0("Number of suburbs with more than 7 rooms per dwelling on an average : ",mr_7))
+
+mr_8=nrow(Boston[(Boston$rm>8),])
+mr_8_set=Boston[(Boston$rm>8),]
+print(paste0("Number of suburbs with more than 8 rooms per dwelling on an average : ",mr_8))
+
+
+```
+
+Findings:
+The suburbs with more than 8 rooms per dwelling have below average lower status population % ; above average median value of owner-occupied homes ; above average proportion of owner-occupied units built prior 1940 and mostly below average crime rate
+
+========================================================================================
+
+##### Chapter 3 : Question 15 :
+
+a)For each predictor, fit a simple linear regression model to predict the response. Describe your results. In which of the models is there a statistically significant association between the predictor and the response? Create some plots to back up your assertions.
+
+```{r warning=FALSE  }
+#Load the data set
+library(MASS)
+# Y = crim
+
+# Function to regress each variable with crim
+
+var_names=as.array(colnames(Boston))
+var_names=var_names[-1]
+
+reg_fin_tab=data.frame(coeff=double(),
+                     std_err=double(),
+                     t_stat=double(),
+                     p_val=double(),
+                     r_sqr=double(),
+                     adj_r_sqr=double())
+
+linear_reg_func=function(x)
+{
+  fm = as.formula(paste("crim~",x))
+  bost_reg=lm(fm,data=Boston)
+  return(summary(bost_reg))
+  
+}
+
+
+##bost_reg=lm(crim~tax,data=Boston)
+
+for (i in 1:length(var_names))
+{
+  m=linear_reg_func(var_names[i])
+  reg_fin_tab=rbind(reg_fin_tab,c(m$coefficients[2,],m$r.squared,m$adj.r.squared))
+}
+reg_fin_tab=cbind(reg_fin_tab,var_names)
+colnames(reg_fin_tab)=c('coeff','std_err','t_stat','p_val','r-sqrd','adj_r_sqr','variable')
+
+# Relationship between crime rate and tax
+##Plots
+reg=lm(crim~tax,data=Boston)
+plot(Boston$tax,Boston$crim)
+abline(reg)
+
+# Relationship between crime rate and distance to employment center
+reg1=lm(crim~dis,data=Boston)
+plot(Boston$dis,Boston$crim)
+abline(reg1)
+
+```
+
+
+
+Findings:
+1. All the variables (zn, indus,chas, nox, rm,age,dis,rad,tax,pratio,black,lstat,mdev) are significant i.e. with low p-values and standard errors. T-stats are also high except for charles river dummy variable 
+2. Accessibility to radial highways and full-value property-tax rate showcases highest explainability of the variation i.e. r-square values (39% and 34% resp)
+
+
+```{r warning=FALSE }
+# Fit a multiple regression model to predict the response using all of the predictors. Describe your results. For which predictors can we reject the null hypothesis H0 : βj = 0?
+
+library(MASS)
+model=lm(crim~zn+indus+chas+nox+rm+age+dis+rad+tax+ptratio+black+lstat+medv, data=Boston)
+
+mod_sum=summary(model)
+mod_sum
+
+```
+
+Findings: Answer for c:
+- The multiple regression model has standard error of 6.439 and can explain ~44% of the crime rate variation.
+- Weighted distance to employment centres, accessibility to radial highways and median value of homes have significant effect on the crime rate of the suburbs.
+- With the multiple regression model, the variables which were significant separately, like tax rate, pupil-teacher ratio etc, are now not very significant. 
+
+
+```{r warning=FALSE }
+##### Question c 
+mult_reg_coeff=mod_sum$coefficients[-1,]
+plt_table=data.frame(cbind(reg_fin_tab[,7],reg_fin_tab[,1],mult_reg_coeff[,1]))
+
+colnames(plt_table)=c('Predictor','uni_reg_coeff' ,'multi_reg_coeff')
+
+#Coefficient Plot 
+plot(as.numeric(as.character(plt_table$uni_reg_coeff)),as.numeric(as.character(plt_table$multi_reg_coeff,as.numeric)))
+
+
+```
+
+Finding:
+
+- Most of the coefficients are in the range of -1 to 1 for both univariant and multi-variant regression, except for nitrogen oxide concentration, which has high positive univariant regression coefficient but negative multi-variant coefficient. This indicates that in the presence of other variables, the impact of nitrogen oxide concentration changes completely while explaining the variation in crime rate
+
+
+```{r warning=FALSE }
+##### Question d
+#Is there evidence of non-linear association between any of the predictors and the response?
+  
+non_linear_reg_func=function(x)
+{
+  fmn = as.formula(paste("crim~",x,"+ I(",x,"^2)+I(",x,"^3)"))
+  bost_reg_non=lm(fmn,data=Boston)
+  return(summary(bost_reg_non))
+}
+
+for (i in 1:length(var_names))
+{
+  m=non_linear_reg_func(var_names[i])
+  #print(m)
+}
+
+```
+ 
+ 
+ Findings:
+- Median home values showcase the most significant non-linear relationship with crime rate with large t-statistics 
+
+- Proportion of non-retail business area, median value of the house (medv), nitrogen oxide concentration, distance from employment centre and home value seems to have significant non-linear relationship with crime rate.
+
+=======================================================================================
+
+#### Chapter 4 : Question 10
+
+```{r warning=FALSE }
+#Produce some numerical and graphical summaries of the Weekly data. Do there appear to be any patterns?
+
+library(ISLR)
+#summary(Weekly)
+#head(Weekly)
+
+week_mod=Weekly # Copy for transformations
+week_mod$dire_new=ifelse(Weekly$Direction == "Up", 1,0) 
+
+#Drop Direction column - which has strings 
+week_mod=week_mod[,-9]
+
+# Data Distribution Plots
+
+boxplot(week_mod$Lag1~week_mod$dire_new, data=week_mod)
+
+boxplot(week_mod$Lag2~week_mod$dire_new, data=week_mod)
+
+boxplot(week_mod$Lag3~week_mod$dire_new, data=week_mod)
+
+boxplot(week_mod$Lag4~week_mod$dire_new, data=week_mod)
+
+boxplot(week_mod$Lag5~week_mod$dire_new, data=week_mod)
+
+boxplot(week_mod$Volume~week_mod$dire_new, data=week_mod)
+
+boxplot(week_mod$Today~week_mod$dire_new, data=week_mod)
+
+plot(week_mod$Today, week_mod$Volume, data=week_mod)
+
+cor_matrix=data.frame(cor(week_mod[-1]))
+cor_matrix
+
+```
+Finding:
+
+- Percentage of return this week is observed to be a deciding factor for direction of the return on a given week
+
+- From the correlation matrix, no strong correlation has been observed amongst all the variables except for Direction and Today
+ 
+
+
+
+```{r echo= FALSE, warning= FALSE}
+log_reg=glm(dire_new~Lag1+Lag2+Lag3+Lag4+Lag5+Volume, data=week_mod,family=binomial)
+
+summary(log_reg)
+
+# predict for the entire data set
+predicted = predict(log_reg, week_mod, type="response")
+
+#Decide on optimal cut-off
+library(InformationValue)
+optCutOff = optimalCutoff(week_mod$dire_new, predicted)[1] 
+# The cutoff is of : 0.4837046
+
+# Check misclassification error :
+
+misClassError(week_mod$dire_new, predicted, threshold = optCutOff)
+print("There is a mis-clasification error of : 43.71% with the current model")
+
+#create confusion matrix:
+
+conf_mat=confusionMatrix(week_mod$dire_new, predicted, threshold = optCutOff)
+conf_mat
+
+sensitivity(week_mod$dire_new, predicted, threshold = optCutOff)
+# Sensitivity= 0.9619  
+
+specificity(week_mod$dire_new, predicted, threshold = optCutOff)
+# Specificity = 0.0640
+
+
+```
+
+
+Finding: 
+-Only Lag2, seems to be significant with standard error of 0.02686 and z-stats of 2.175
+
+
+-The model has overall accuracy of 56.3% 
+
+
+- The model sensitivity is ~96% i.e. the model is capable of predicting actual Ups in the direction as Up. However, it has very low sensitivity (6.4%) i.e. the actual Down in the direction are not correctly predicted by the model
+
+- The model is able to predict the true positives well. However, many of the 'Down' values are predicted incorrectly by the model
+
+```{r warning=FALSE }
+#Logistic reg with train and test
+
+train_log=week_mod[which(week_mod$Year<=2008),]
+test_log=week_mod[which(week_mod$Year>2008),]
+
+log_reg_2=glm(dire_new~Lag2, data=train_log,family=binomial)
+
+summary(log_reg_2)
+
+# predict for the entire data set
+predicted <- predict(log_reg_2, test_log, type="response")
+
+#Decide on optimal cut-off
+library(InformationValue)
+optCutOff <- optimalCutoff(test_log$dire_new, predicted)[1] 
+optCutOff
+#0.4953
+
+conf_mat=confusionMatrix(test_log$dire_new, predicted, threshold = optCutOff)
+conf_mat
+
+sensitivity(test_log$dire_new, predicted, threshold = optCutOff)
+# Sensitivity= 0.9344
+
+specificity(test_log$dire_new, predicted, threshold = optCutOff)
+# specificity = 0.1860
+
+misClassError(test_log$dire_new, predicted, threshold = optCutOff)
+#Mis classification is 37.5%
+
+```
+ Findings:
+ - The model has ~ 63.5% of fraction of correct predictions
+ 
+ - Sensitivity = 93.44% i.e. 93.44% of Ups are predicted as Ups by the model
+ 
+ -  Specificity = 18.6% i.e. 18.6% of Downs are predicted as Ups by the model
+
+Question 4 : KNN
+```{r warning=FALSE  }
+library(class)
+
+set.seed(11)
+
+
+knn_pred=knn(data.frame(train_log$Lag2),data.frame(test_log$Lag2),train_log$dire_new ,k=1)
+df=table(knn_pred ,test_log$dire_new)
+
+pred_accuracy=(df[1,1]+df[2,2])/(df[1,1]+df[1,2]+df[2,1]+df[2,2])
+print(paste("Prediction accuracy with KNN is : ", pred_accuracy*100,"%"))
+
+```
+
+Findings:
+- Logistic regression is observed to be producing better prediction accuracy compared to knn when k=1 (Accuracy of logistic reg=63.5% and accuracy of knn=50%)
+
+-
+
+```{r warning=FALSE}
+
+pred_accuracy2=list()
+
+set.seed(11)
+for (i in 1:50)
+{
+  knn_pred=knn(data.frame(train_log$Lag2),data.frame(test_log$Lag2),train_log$dire_new ,k=i)
+  df=table(knn_pred ,test_log$dire_new)
+
+  pred_accuracy2[i]=(df[1,1]+df[2,2])/(df[1,1]+df[1,2]+df[2,1]+df[2,2])
+  
+  print(paste("Prediction accuracy is : ", pred_accuracy2[i],"for k=", i))
+}
+
+
+```
+
+
+
+Findings:
+- The model trained with all the variables on training data provides the accuracy of 41.35%
+
+- When Today is considered while building the model along with Lag2, the model does not converge i.e. not able to solve the likelihood
+
+- For knn with Log2 as a predictor, the best accuracy of 54.8 is obtained for k=10 
+
+- Hence the best method : Logistic regression with Lag2 as a predictor with accuracy of 63.5%
+
+========================================================================================
+
+#### Chapter 6 : Question 9 
+```{r warning=FALSE }
+#Import Data
+
+library(ISLR)
+#Data Wrangling :
+#Convert private flag :
+college=College
+college$priv_flag <- ifelse(college$Private == "Yes", 1,0)  
+#Drop the string Private column and use priv_flag instead
+colg_mod=college[,-1]
+
+
+#Divide data into test and training
+set.seed (11)
+train=sample (1: nrow(colg_mod), nrow(colg_mod)*0.8)
+train_clg=colg_mod[train,]
+test=(- train )
+test_clg=colg_mod[test,]
+
+#Regression Model : Predict #applications
+ls_reg=lm(Apps~Accept+Enroll+Top10perc+Top25perc+F.Undergrad+P.Undergrad +Outstate+ Room.Board+Books+Personal+PhD +Terminal+S.F.Ratio+perc.alumni +Expend+Grad.Rate+ priv_flag,data=train_clg)
+print("Summary of Least Square Regression Model:")
+summary(ls_reg)
+
+# AIC of LS Regression
+ls_reg_aic=AIC(ls_reg)
+
+# Predictions for Test
+library(caret)
+app_pred=predict(ls_reg ,test_clg)
+
+actuals_preds <- data.frame(cbind(actuals=test_clg$Apps,predicteds=app_pred)) 
+
+rmse= sqrt(mean((actuals_preds$predicteds -actuals_preds$actuals)^2))
+print(paste("The error obtained with linear regression is : ",rmse))
+#summary(colg_mod$Apps)
+```
+
+
+
+```{r echo= FALSE, warning= FALSE}
+##### Question 9:Ridge Regression
+#Ridge Regression Model
+
+library(glmnet)
+
+x=model.matrix(Apps∼.,train_clg)[,-1] # Creates a data matrix and remove the intercept 
+x_test=model.matrix(Apps∼.,test_clg)[,-1]
+y=train_clg$Apps
+y_test=train_clg$Apps
+
+grid =10^seq(10,-2, length =100)
+
+#cv.glmnet uses cross-validation to work out how well each model generalises
+
+ridge.mod =cv.glmnet(x,y,alpha =0, lambda =grid)
+
+plot(ridge.mod)
+
+#optimum lambda :
+
+min_lam=ridge.mod$lambda.min
+se1_lam=ridge.mod$lambda.1se
+# 1 SE lambda to avoid over fitting  : lambda =132.1941 : 66th element
+
+# Predict :
+pred_ridge = predict(ridge.mod,s=se1_lam,newx=x_test) # This is in some matrix class
+pred_ridge  =as.matrix(pred_ridge)
+
+#combine y_test and pred_ridge
+
+pred_ridge=data.frame(pred_ridge)
+
+act_pred_ridge = data.frame(cbind(test_clg$Apps,pred_ridge)) 
+#colnames(act_pred_ridge)
+
+rmse_ridge= sqrt(mean((act_pred_ridge$test_clg.Apps-act_pred_ridge$X1)^2))
+
+print(paste("RMSE of Ridge Regression: ",rmse_ridge))
+
+
+
+```
+
+
+
+```{r echo= FALSE, warning= FALSE}
+##### Question 9: Lasso Regression
+#Lasso Regression Model
+
+#cv.glmnet uses cross-validation to work out how well each model generalises
+
+las.mod =cv.glmnet(x,y,alpha =1, lambda =grid) # Alpha =1 : Lasso
+
+plot(las.mod)
+
+#optimum lambda :
+
+se1_lam_las=las.mod$lambda.1se
+
+# Predict :
+pred_las = predict(las.mod,s=se1_lam_las,newx=x_test) 
+
+
+pred_las_c = predict(las.mod,s=se1_lam_las,type="coefficients",newx=x_test)
+pred_las_c
+#combine y_test and pred_las
+
+pred_las=data.frame(pred_las)
+
+act_pred_las <- data.frame(cbind(test_clg$Apps,pred_las)) 
+#colnames(act_pred_las)
+
+rmse_las= sqrt(mean((act_pred_las$test_clg.Apps-act_pred_las$X1)^2))
+
+print(paste("RMSE of Lasso Regression: ",rmse_las))
+
+
+
+```
+
+Finding:
+- Non-zero coefficients: Accept, Top10perc, Expend
+
+
+```{r echo= FALSE, warning= FALSE }
+##### Question 9: PCR
+library (pls)
+set.seed (2)
+pcr.fit=pcr(Apps∼., data=train_clg ,scale=TRUE ,validation ="CV")
+summary(pcr.fit)
+
+validationplot(pcr.fit ,val.type="MSEP")
+# The error seems to be low at component = 4 pr 5
+
+pcr.pred=predict (pcr.fit ,test_clg, ncomp =5)
+
+rmse_pcr=sqrt(mean((pcr.pred -test_clg$Apps)^2))
+
+rmse_pcr
+
+```
+
+Findings:
+- RMSE obtained by PCR = 1358.84 and number of components chosen = 5 as the rate of change in RMSE drops post M=5
+
+Question Problem 3 : PLS
+```{r echo= FALSE, warning= FALSE }
+library (pls)
+set.seed (2)
+pls.fit=plsr(Apps∼., data=train_clg ,scale=TRUE ,validation ="CV")
+summary(pls.fit)
+
+validationplot(pls.fit ,val.type="MSEP")
+# The error seems to be low at component = 5
+
+pls.pred=predict (pls.fit ,test_clg, ncomp =5)
+
+rmse_pls=sqrt(mean((pls.pred -test_clg$Apps)^2))
+
+print(paste("The error obtained with PLS is : ",rmse_pls))
+
+
+```
+
+
+College Applications could be predicted by :
+  -  Least square linear regression with the error of 930 applications
+  
+  - Ridge Regression with the error of 948 applications (with 1 SE lambda)
+  
+  - Lasso Regression with the error of 1034 applications 
+  
+  - PCR with the error of 1358 applications
+  
+  - PLS with the error of 973 applications
+
+out of all the models, Least square and ridge regression provide accurate results with error of 930 and 948 respectively. 
+
+
+
+
+========================================================================================
+
+##### Chapter 6 : Question 11
+```{r warning=FALSE }
+require(leaps)  
+require(glmnet)  
+require(MASS)    
+data(Boston)
+
+# Train and Test Data
+set.seed(11)
+samp1=sample(nrow(Boston),nrow(Boston)*0.70)
+bstn_train<-Boston[samp1,]
+bstn_test<-Boston[-samp1,]
+```
+
+
+1. OLS
+```{r warning=FALSE}
+ols_bstn=lm(crim~.,data=bstn_train)
+ols_pred_bstn=predict(ols_bstn,bstn_test)
+ols_rmse=sqrt(mean((ols_pred_bstn-bstn_test$crim)^2))
+print(paste("The error obtained with OLS : ",ols_rmse))  
+```
+  
+2. Best Subsets
+```{r message=FALSE}
+#Best Subset Model 
+library(leaps)
+best_sb=regsubsets(crim~.,data=bstn_train,nvmax=13)
+summary(best_sb)
+```
+
+
+```{r message=FALSE}
+bstn_test_mat=model.matrix(crim~., data = bstn_test, nvmax = 13)
+bstn_error=rep(NA, 13)
+for (i in 1:13) 
+{
+    coefi = coef(best_sb, id = i)
+    pred = bstn_test_mat[, names(coefi)] %*% coefi
+    bstn_error[i] <- mean((pred - bstn_test$crim)^2)
+}
+plot(bstn_error, xlab = "Number of predictors", ylab = "Best Subset MSE", pch = 19, type = "b")
+
+```
+
+
+```{r message=FALSE}
+m_p=which.min(bstn_error)
+print(paste("Minimum Test MSE is obtained with : ",m_p))
+```
+
+```{r warning=FALSE}
+coef(best_sb,which.min(bstn_error))
+best_sb_mse<-bstn_error[which.min(bstn_error)[1]]
+
+print(paste("The error obtained with Best Subset Selection : ",sqrt(best_sb_mse)))
+
+```
+  
+Forward Selection
+
+```{r message=FALSE}
+#forward selection
+
+null_fit=lm(crim ~ 1, data = bstn_train)
+full_fit=lm(crim ~ ., data = bstn_train)
+
+fwd_model_bstn=step(null_fit, scope = list(lower = null_fit, upper = full_fit),direction = "forward")
+summary(fwd_model_bstn)
+fwd_predict_bstn=predict(fwd_model_bstn,bstn_test)
+fwd_mse_bstn=mean((fwd_predict_bstn-bstn_test$crim)^2)
+
+print(paste("The error obtained with Forward Selection : ",sqrt(fwd_mse_bstn)))
+
+```
+  
+Backward Selection
+  
+```{r message=FALSE}
+bwd_model_bstn=step(full_fit,direction = "backward")
+summary(bwd_model_bstn)
+bwd_predict_bstn=predict(bwd_model_bstn,bstn_test)
+bwd_rmse_bstn=sqrt(mean((bwd_predict_bstn-bstn_test$crim)^2))
+print(paste("The error obtained with Backward Selection : ",bwd_rmse_bstn))
+
+```
+  
+
+Ridge on Boston
+
+```{r MESSAGE=FALSE}
+train_mat=model.matrix(crim~.,data=bstn_train)
+test_mat=model.matrix(crim~.,data=bstn_test)
+ridge_model_bstn = cv.glmnet(train_mat,bstn_train$crim, alpha=0)
+
+
+#1 se lmabda
+lambda = ridge_model_bstn$lambda.1se
+print(paste("The optimal value for lambda:",lambda))
+
+pred_ridge_bstn = predict(ridge_model_bstn, s=lambda, newx=test_mat)
+ridge_bstn_rmse = sqrt(mean((bstn_test$crim - pred_ridge_bstn)^2))
+
+
+print(paste("The test error in ridge regression:",ridge_bstn_rmse))
+
+```
+
+ 
+Lasso on Boston 
+
+```{r MESSAGE=FALSE}
+train_mat_bstn=model.matrix(crim~.,data=bstn_train)
+
+test_mat_bstn=model.matrix(crim~.,data=bstn_test)
+
+las_bstn=cv.glmnet(train_mat,bstn_train$crim, alpha=1)
+
+#Chosing the optimal lambda value
+lambda_las = las_bstn$lambda.1se
+
+print(paste("The optimal value for lambda:",lambda_las))
+
+pred_lasso_bstn = predict(las_bstn, s=lambda, newx=test_mat)
+
+rmse_lasso_bstn = sqrt(mean((bstn_test$crim - pred_lasso_bstn)^2))
+
+print(paste("The test error in lasso regression:",rmse_lasso_bstn))
+
+```
+
+PCR
+
+```{r message=FALSE}
+library(pls)
+
+pcr_model_bstn=pcr(crim~.,data=bstn_train,scale=TRUE,validation="CV")
+
+summary(pcr_model_bstn)
+
+validationplot(pcr_model_bstn,val.type="MSEP")
+
+bstn_pred_pcr=predict(pcr_model_bstn,bstn_test,ncomp=13)
+
+pcr_rmse=sqrt(mean((bstn_test$crim-bstn_pred_pcr)^2))
+
+pcr_rmse
+
+```
+PLS
+```{r message=FALSE}
+library(pls)
+
+pls_model_bstn=plsr(crim~.,data=bstn_train,scale=TRUE,validation="CV")
+
+validationplot(pls_model_bstn,val.type="MSEP")
+
+bstn_pred_plsr=predict(pls_model_bstn,bstn_test,ncomp=12)
+
+pls_rmse_bstn=sqrt(mean((bstn_test$crim-bstn_pred_plsr)^2))
+pls_rmse_bstn
+
+```
+
+Comparing  RMSEs: 
+
+```{r warning=FALSE}
+cat("PLS:",pls_rmse_bstn,"\nPCR:",pcr_rmse,"\nLasso:",rmse_lasso_bstn,"\nRidge:",ridge_bstn_rmse,"\nBackward Selection",bwd_rmse_bstn,"\nForward Selection:",sqrt(fwd_mse_bstn),"\nBest Subset Selection",sqrt(best_sb_mse),"\nOLS:",ols_rmse)
+```
+
+Findings: 
+
+- The training RMSE is the lowest for Best Subset selection as it contains all the variables in every iteration. This makes the process computationally heavy.
+
+- Amongst the other cross validated models, PLS and PCR provide almost equally accurate prediction capability
+
+Q. Does your chosen model involve all of the features in the data
+set? Why or why not?
+
+Ans- Yes, the chosen model involves all the features. PCR and PLS use all the coefficients and transform them to reduce the number of effective coefficients.
+
+========================================================================================
+
+#### Chapter 8 : QUestion 8 
+```{r warning=FALSE }
+library(ISLR)
+attach(Carseats)
+
+#Divide into test and sample:
+set.seed (2)
+train_cr=sample(1: nrow(Carseats), 200)
+car_train=Carseats[train_cr ,]
+car_test=Carseats[-train_cr ,]
+
+# Fit regression tree
+library(tree)
+tree_car =tree(Sales∼. ,data=Carseats,subset=train_cr)
+
+summary(tree_car)
+
+
+plot(tree_car)
+text(tree_car ,pretty =0)
+
+# Check if pruning improves the results :
+cv_car =cv.tree(tree_car )
+plot(cv_car$size ,cv_car$dev ,type="b")
+
+#Predict for the test data set
+#pred_tree=predict(tree_car,car_test,type="class")
+
+prune_car=prune.tree(tree_car ,best =3)
+plot(prune_car )
+text(prune_car ,pretty =0)
+
+#In-sample validation :
+pred_car_in=predict(tree_car ,newdata =car_train)
+car_train_sales=car_train[,"Sales"]
+plot(pred_car_in ,car_train_sales)
+abline (0,1)
+MSE_in= mean((pred_car_in -car_train_sales)^2)
+
+
+
+# Cross -Validation :
+
+pred_car=predict(tree_car ,newdata =car_test)
+car_test_sales=car_test[,"Sales"]
+plot(pred_car ,car_test_sales)
+abline (0,1)
+MSE_out= mean((pred_car -car_test_sales)^2)
+MSE_out
+
+#Check the MSE with pruned tree: cross-validation:
+
+pred_car_prune=predict(prune_car ,newdata =car_test)
+plot(pred_car_prune ,car_test_sales)
+abline (0,1)
+MSE_prune= mean((pred_car_prune -car_test_sales)^2)
+MSE_prune
+
+print(paste("In Sample MSE is ",MSE_in,"; Cross-validation MSE = ",MSE_out," and MSE with pruned tree = ",MSE_prune," . Hence pruning does not improve the test MSE"))
+
+```
+Findings:
+
+
+- Tree without pruning has chosen 6 variables. Pruned tree has 2 tree.
+
+- Since the elbow is obtained at size = 3. Post 3, there is slight increase in deviation and hence the pruned tree is trained for size=3
+
+- Tree Explaination :
+  The single tree, divides the decision right at the Price and goes on to check Shelvloc condition. The pruned tree stops right here without any further condition checking. In contrast, the single tree has 14 terminal nodes with further decision conditions on Compride, age, advertising and population.
+
+
+
+
+```{r warning=FALSE }
+#Question 8 d)
+# Bagging code 
+library (randomForest)
+set.seed (11)
+bag_car=randomForest(Sales∼.,data=car_test, mtry=10, importance=TRUE)
+bag_car
+
+pred_bag = predict(bag_car ,newdata =car_test)
+MSE_bag= mean(( pred_bag - car_test$Sales)^2)
+#MSE_bag
+
+plot(pred_bag , car_test$Sales)
+abline (0,1)
+
+
+#Importance :
+importance(bag_car)
+
+varImpPlot(bag_car)
+
+```
+
+Finding:
+
+- With bagging, in sample MSE of 3.08 is obtained with 61.6% of the variability explained by the model and out of sample MSE drops to 3.02
+
+- SheveLoc, Price, Age, CompPrice and Advertising are the most important variables.
+
+
+
+```{r warning=FALSE }
+#Question 8 e)
+# Random Forest
+
+set.seed (11)
+rf_car=randomForest(Sales∼.,data=car_test,  importance=TRUE)
+rf_car
+
+pred_rf = predict(rf_car ,newdata =car_test)
+plot(pred_rf , car_test$Sales)
+abline (0,1)
+MSE_rf=mean(( pred_rf - car_test$Sales)^2)
+MSE_rf
+
+#Importance :
+importance(rf_car)
+
+varImpPlot(rf_car)
+
+# Effect of m :
+
+rf_mse = list()
+test_mse=list()
+
+
+#mtry is no of Variables randomly chosen at each split
+for(m in 1:10)
+{
+rf_car_iter=randomForest(Sales ~ . , data = car_train,mtry=m,ntree=500) 
+rf_mse[m] = rf_car_iter$mse[500]    #Stores the error of all Trees fitted
+  
+pred_rf<-predict(rf_car_iter,car_test) 
+test_mse[m]= with(car_test, mean( (Sales - pred_rf)^2)) 
+}
+
+matplot(1:m , cbind(rf_mse,test_mse), pch=10 , col=c("red","blue"),type="b",ylab="Mean Squared Error",xlab="Number of Predictors Considered at each Split") 
+legend("topright",legend=c("Train Error","Test Error"),pch=19,col=c("red","blue"))
+
+
+```
+
+Finding:
+
+- The in sample MSE of 3.27 (with 59% variability explained) is obtained, which is still better than single tree MSE.However, randomforest MSE is higher than from that of obtained by bagging.  Out of sample MSE of 3.16 is obtained with random forest model
+
+- As m increases, MSE decreases. The rate of change of MSE decreases significantly post m=6
+
+- SheveLoc, Price, Age, CompPrice and Advertising are the most important variables
+
+=======================================================================================
+
+
+#### Chapter 8 : Question 11
+
+
+```{r message=FALSE}
+#Import the dataset
+library(ISLR)
+library(gbm)
+library(InformationValue)
+#ldetach(Caravan)
+attach(Caravan)
+#Data Set : Caravan
+set.seed(11)
+caravan <- Caravan 
+caravan$Purchase=as.numeric(ifelse(caravan$Purchase =="Yes",1,0))
+car_train1=caravan[1:1000,]
+#car_train=subset(car_train, select = -c(PVRAAUT, AVRAAUT))
+car_test1=caravan[1001:nrow(caravan),]
+#car_test=subset(car_test, select = -c(PVRAAUT, AVRAAUT))
+
+
+boost_car1 = gbm(Purchase~., data= car_train1, distribution = "bernoulli", n.trees = 1000, shrinkage = 0.01)
+
+summary(boost_car1)
+
+
+```
+
+Finding:
+
+- PPERSAUT ,MKOOPKLA and MOPLHOOG  are observed to be the most important
+
+```{r warning=FALSE}
+#Boosting Predictions:
+
+boost_pred_test = predict(boost_car1, car_test1,n.trees=1000,type="response",shrinkage=0.01)
+boost_mod_list=ifelse(boost_pred_test > 0.2 ,1,0)
+
+#Create a confustion matrix with cutoff of 0.2 : this is wrong
+#conf_mat_boost=confusionMatrix(car_test1$Purchase,boost_pred_test,threshold =0.2)
+table(car_test1$Purchase,boost_mod_list)
+#conf_mat_boost
+
+accuracy = (31+4408)/(125+258+4408+31)
+
+```
+Finding:
+
+- Accuracy of Boosting : 92.05%
+
+- Out of 289 customer predicted to make a purchase, 31 are actually making the purchase (10.7%)
+
+
+
+Chapter 8 Question 11 Part c 
+Use the boosting model to predict the response on the test data. Predict that a person will make a purchase if the estimated probability of purchase is greater than 20 %.Form a confusion matrix. What fraction of the people predicted to make a purchase do in fact make one? How does this compare with the results obtained from applying KNN or logistic regression to this data set? 
+
+```{r warning=FALSE }
+#Logistic Regression
+log_car=glm(Purchase~., data=car_train1,family=binomial)
+
+summary(log_car)
+
+# predict for the entire data set
+pred_cars1 = predict(log_car, car_test1, type="response")
+
+#Decide on optimal cut-off
+library(InformationValue)
+#create confusion matrix:
+log_pred_cars=ifelse(pred_cars1 > 0.2 ,1,0)
+
+#conf_mat_car=confusionMatrix(car_test1$Purchase, pred_cars1, threshold = 0.2)
+#conf_mat_car
+
+table(car_test1$Purchase, log_pred_cars)
+
+
+```
+
+
+Findings:
+
+- Accuracy with Logistic Regression = 87.95% 
+
+- Out of 289 people who have been predicted to make a purchase 58 actually made the purchase.
+
+- Prediction accuracy is more with boosting (accurcy = 92.05%)
+
+
+
+========================================================================================
+
+#### Problem 1: Beauty Pays!
+
+```{r warning=FALSE }
+
+#Import the data
+beauty_data=read.csv('BeautyData.csv')
+
+#Check the effect of beauty on into course ratings along with other deteminants
+
+beau_eff=lm(CourseEvals~BeautyScore+female+lower+nonenglish+tenuretrack,data=beauty_data)
+
+summary(beau_eff)
+
+#Check the effect of beauty on into course ratings along without other deteminants
+
+beau_eff2=lm(CourseEvals~BeautyScore,data=beauty_data)
+
+summary(beau_eff2)
+
+
+```
+
+Findings:
+
+- When other factors are considered, 1 unit increase in beauty score would have 0.304 units change in course scores
+
+- The model has an standard error of 0.42 and the adjusted R-squared of 0.34. That means 34% of the variation in the course ratings is explained by beauty score and other determinant factors
+
+- When checked for the impact of beauty score only, the standard error of the model is 0.4809 and adjusted R-squared = 0.1639. This indicates that the inclusion of other determinants is improving the predictibility of the model
+
+
+Q.2 : What does  “Disentangling whether this outcome represents productivity or discrimination is, as with the issue generally, probably impossible” mean?
+
+Ans : - 
+
+- From the regression model, it is evident that there is a linear relationship between beauty score and course evaluation scores of the instructors. However, we can not infer that this relationship is due to productivity or distrimination. The correlation might not be the causation for productivity / discrimination. 
+An instructor could be very confident and knowledgable, which in turn fetches him more salary than some other under-confident instructor.
+Hence, beauty being strong dirving factor for course evaluation can not be inferred as a person's productivity driver or a factor of discrimination
+
+- Also, the R- square of 35% indicates that there are other factors which might affect the evalution score apart from beauty. These factors could be related to productivity of the instructor.Hence disentangling whether the outcome indicates productivity or discrimination is not possible according to the professor 
+
+=======================================================================================
+
+##### Problem 2 : Midcity
+```{r warning=FALSE }
+#Import the data set;
+
+mid_city=read.csv('MidCity.csv')
+
+mid_city['old']=ifelse(mid_city$Nbhd < 3,1,0)
+
+mid_city$Nbhd = as.factor(mid_city$Nbhd)
+mid_city$Brick = as.factor(mid_city$Brick)
+mid_city$old = as.factor(mid_city$old)
+
+
+#Regress with y= price :
+hm_price=lm(Price~Offers+SqFt+Bedrooms+Bathrooms+Brick+Nbhd,data=mid_city)
+
+summary(hm_price)
+
+```
+
+1. Is there a premium for brick houses everything else being equal?
+
+Ans- COefficient of Brick is positive. This indicates that there is a premium for brick houses everything else being equal.
+
+2. Is there a premium for houses in neighborhood 3?
+
+Ans- Yes. The Coefficients of neighborhood  3 with respect to neighborhood 1 is positive and it is greater than the coefficient of neighborhood 2. This indicates that there is a premium for houses in neighborhood 3. 
+
+3. Is there an extra premium for brick houses in neighborhood 3?
+
+Interaction in brick and neighborhood 3
+
+```{r warning=FALSE }
+hm_price_inter=lm(Price~Offers+SqFt+Bedrooms+Bathrooms+Brick+Nbhd+Brick*Nbhd-Home,data=mid_city)
+
+summary(hm_price_inter)
+
+```
+
+Ans- 
+
+The interaction of brick and neighborhood 3 is significant (with 95% confidence interval) and it's coefficient is positive (11933), indicating that the premium has to be paid for brick houses in neighborhood 3.
+
+
+4. For the purposes of prediction could you combine the neighborhoods 1 and 2 into a single “older” neighborhood?
+
+```{r warning=FALSE }
+
+#Train and test :
+set.seed(1)
+train_prc=sample(1: nrow(mid_city), nrow(mid_city)*0.8)
+prc_train=mid_city[train_prc ,]
+prc_test=mid_city[-train_prc,]
+
+price_reg2=lm(Price~Offers+SqFt+Bedrooms+Bathrooms+Brick+old,data=prc_train)
+
+summary(price_reg2)
+
+## Prediction :
+pred_beau=predict(price_reg2,prc_test)
+
+pred_mse=sqrt(mean((pred_beau-prc_test$Price)^2))
+pred_mse
+
+```
+
+Ans - 
+
+- The prediction error with combined neighborhoods, is 11,313
+Old house prices are $21,938 lesser than that of new houses when everything else is same.
+
+- In sample error decreases as the neighbourhood 1 and 2 are combined as old neighborhood
+
+
+=======================================================================================
+
+##### Problem 3 : What Causes what ?
+
+a) Ans- There are 2 problems with taking crime data from a few cities and understanding how more cops in the street affect crime rate:
+  1. There could be other factors, which will not be considered while taking only crime rate and number of police data. The podcast talks about one such factor as number of victims on the road, when there was medium to high terror alert and the researchers found out no change in ridership in metros. Such underlying factors would be missed out while considering crime and police data solely.
+  
+  2. The behavior does vary from a city to another city. For places like D.C. there might be a negative correlation of number of police to the crime rate. For some other cities, where crime rate is not so high, increasing the number of police might not make any difference. Hence, generalizing the effect for all the cities based on a small set of biased cities would be inappropriate 
+
+Question 3.2:
+
+  Researchers from UPENN, tried to find out the examples where there is increase in number of police for the reasons unrelated to crime rate. They found out one such case of terrorism alert, as by law, the police force is increased in case of high terrorist alert.  They found out that crime rate decreases on the days when there is a high terrorist alert in DC. Table 2 showcases negative coefficient of High Alert indicating, negative correlation with significance level of 5%. 
+  
+  The researchers also hypothesized about the number of victims available on the road on such days, when the crime rate was higher in the city. They found out that there was no dip in people's ridership on such days. Indicating that the crime rate increases as the ridership for metro increases
+
+Question 3.3 :
+
+  The researchers had the hypothesis that the number of tourists or people on street were less on the high terrorist alert days (as people might want to stay at home during the high alert to be safe) and hence they tried to check that hypothesis. They took METRO ridership as the measure of people on the street. They found out that there was no dip in ridership on such days and hence they were able to control for the metro ridership in the city
+  
+Question 3.4:
+
+  The model considers the situation in district 1 vs in other districts. It checks the interaction between district 1 and high terrorist alert along with ridership. 
+  
+  Conclusion of the model :- In district 1 as the terrorist alert increases, the crime rate decreases. This is not significantly observed in other districts. However, ridership is still 5% significant while predicting crime rate.
+
+
+======================================================================================= 
+
+##### Problem 4 : BART 
+
+```{r warning=FALSE}
+
+bart_data=read.csv('CAhousing.csv')
+
+bart_data$medianHouseValue = log(bart_data$medianHouseValue)
+x=bart_data[,1:8]
+y=bart_data$medianHouseValue
+
+rows=nrow(bart_data)
+
+samp = sample(1:rows,floor(.75*rows)) 
+
+bart_train1=bart_data[samp,]
+bart_test=bart_data[-samp,]
+
+
+xtrain=x[samp,]; ytrain=y[samp] # training data
+xtest=x[-samp,]; ytest=y[-samp]
+
+#Divide into training and testing 
+
+library(BART) 
+set.seed(99) 
+nd=200 # number of kept draws
+burn=50 # number of burn in draws
+bart_cal = wbart(x,y,nskip=burn,ndpost=nd)
+
+# 
+bart_train = wbart(xtrain,ytrain)
+pred_bart = predict(bart_train,as.matrix(xtest))
+
+mse_bart=mean((pred_bart-ytest)^2) 
+
+mse_bart
+
+mean_bart = apply(pred_bart,2,mean)
+
+plot(ytest,mean_bart)
+abline(0,1,col=2)
+
+
+```
+
+
+```{r warning=FALSE}
+#BART compared to RF and Boosting
+
+
+set.seed (11)
+library(randomForest)
+
+rf_bart=randomForest(medianHouseValue∼.,data=bart_train1,  importance=TRUE)
+rf_bart
+
+pred_rf_bart = predict(rf_bart ,newdata =bart_test)
+plot(pred_rf_bart , bart_test$medianHouseValue)
+abline (0,1)
+MSE_rf_bart=mean(( pred_rf_bart - bart_test$medianHouseValue)^2)
+
+
+```
+
+Finding :
+
+
+- The RMSE with BART is 0.58 and that of with random forest is 0.53 . This indicates that BART is not outperforming random forest model. Standard error is slightly lower for  random forest and hence the accuracy is better than BART
+
+
+
+##### Problem 5 : Neural Network
+
+```{r warning=FALSE}
+
+library(MASS)  # library for Boston data set
+###standardize the x's
+minv = rep(0,3)
+maxv = rep(0,3)
+bstn = Boston
+
+##Train and test data 
+samp1 = sample(1:nrow(bstn),floor(0.70*nrow(bstn))) 
+
+# standardization of the data
+for(i in 1:3) 
+{
+minv[i] = min(Boston[[i]])
+maxv[i] = max(Boston[[i]])
+bstn[[i]] = (Boston[[i]]-minv[i])/(maxv[i]-minv[i])
+}
+
+train_bstn=bstn[samp1,]
+test_bstn=bstn[-samp1,]
+
+### nn library
+library(nnet)
+
+###fit nn with just one x=food
+set.seed(111)
+bstn_nn = nnet(medv~.,train_bstn,size=3,decay=.1,linout=T)
+summary(bstn_nn)
+
+
+###get fits, print summary,  and plot fit
+fznn = predict(bstn_nn,test_bstn)
+
+zlm = lm(medv~.,train_bstn)
+fzlm = predict(zlm,test_bstn)
+temp = data.frame(y=test_bstn$medv,fnn=fznn,flm=fzlm)
+pairs(temp)
+print("Correlation matrix for linear and NN with y")
+print(cor(temp))
+
+rmse_nn=sqrt(mean(fznn-test_bstn$medv)^2)
+print(paste("RMSE when size=3 and decay=0.1:",rmse_nn))
+
+
+##################################################
+## Size and Decay
+
+### try four different fits
+
+set.seed(14)
+znn1 = nnet(medv~.,train_bstn,size=3,decay=.5,linout=T)
+fznn1 = predict(znn1,test_bstn)
+rmse_nn1=sqrt(mean(fznn1-test_bstn$medv)^2)
+print(paste("RMSE when size=3 and decay=0.5: ",rmse_nn1))
+
+
+znn2 = nnet(medv~.,train_bstn,size=3,decay=.00001,linout=T)
+fznn2 = predict(znn2,test_bstn)
+rmse_nn2=sqrt(mean(fznn2-test_bstn$medv)^2)
+print(paste("RMSE when size=3 and decay=0.00001:",rmse_nn2))
+
+
+znn3 = nnet(medv~.,train_bstn,size=50,decay=.5,linout=T)
+fznn3 = predict(znn3,test_bstn)
+rmse_nn3=sqrt(mean(fznn3-test_bstn$medv)^2)
+print(paste("RMSE when size=50 and decay=0.5:",rmse_nn3))
+
+
+znn4 = nnet(medv~.,train_bstn,size=50,decay=.00001,linout=T)
+fznn4 = predict(znn4,test_bstn)
+rmse_nn4=sqrt(mean(fznn4-test_bstn$medv)^2)
+print(paste("RMSE when size=50 and decay=0.00001:",rmse_nn4))
+  
+
+```
+
+Findings:
+
+
+- As the size of neural network increases, the in test prediction reduces. 
+
+- As the decay factor decreases, the error in test prediction increases
+
